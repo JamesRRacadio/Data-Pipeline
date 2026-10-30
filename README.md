@@ -7,6 +7,7 @@ An event-driven data pipeline that simulates real-time financial transaction str
 
 ## 🗺️ System Architecture
 
+```mermaid
 graph LR
     A[producer.py <br><i>Fictional FI Data</i>] -->|Streaming JSON| B(Docker Container <br><b>Apache Kafka</b>)
     B -->|Streaming Data| C[consumer.py]
@@ -14,6 +15,7 @@ graph LR
 
     style B fill:#333,stroke:#fff,stroke-width:2px,color:#fff
     style D fill:#FF9900,stroke:#333,stroke-width:1px,color:#fff
+```
 
 ## ⚡ How It Works & Performance Constraints
 * **Data Generation:** `producer.py` creates fictional financial transaction records (JSON format) containing fields like `transaction_id`, `account_id`, `amount`, and `timestamp`.
