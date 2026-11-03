@@ -8,8 +8,8 @@ from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType, DoubleType, TimestampType
 from pyiceberg.exceptions import NoSuchTableError
 
-AWS_ACCESS_KEY = "AKIA25LOKDBAE2LLBTXV"
-AWS_SECRET_KEY= "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"
+AWS_ACCESS_KEY = "XXXXXXXXXXXXXXXXXXXX"
+AWS_SECRET_KEY= "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 BUCKET_NAME = "my-portfolio-pipeline-data-2026"
 
 catalog_properties = {
