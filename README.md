@@ -1,6 +1,8 @@
 # Data-Pipeline
 Data pipeline for data engineering project.
 
+THIS PIPELINE IS STILL GROWING. CHECK BACK PERIODICALLY TO SEE THE IMPROVEMENTS!
+
 # 🏦 Daily Financial Transaction Data Pipeline
 
 An event-driven data pipeline that simulates real-time financial transaction streams using Apache Kafka, containers, and batch storage in AWS S3. 
