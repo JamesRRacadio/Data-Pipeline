@@ -21,9 +21,9 @@ graph LR
 
 ## ⚡ How It Works & Performance Constraints
 * **Data Generation:** `producer.py` creates fictional financial transaction records (JSON format) containing fields like `transaction_id`, `account_id`, `amount`, and `timestamp`.
-* **Message Broker:** A Dockerized **Apache Kafka** instance acts as the event backbone, ingestion queue, and decoupled streaming layer.
+* **Message Broker:** A Dockerized **Apache Kafka** instance spun up with Docker Compose acts as the event backbone, ingestion queue, and decoupled streaming layer.
 * **Pipeline Schedule:** The process triggers **daily at 12:00 PM UTC** via a Cron/scheduler utility.
-* **Batch Micro-ingestion:** The `consumer.py` script continuously reads from the Kafka topic, aggregates a batch of exactly **100 records**, and flushes them to the target S3 bucket as a unified file.
+* **Batch Micro-ingestion:** The `consumer.py` script continuously reads from the Kafka topic, aggregates a batch of exactly **100 records**, and flushes them to the target S3 bucket as a unified file and an AWS Glue table.
 
 ## 🛠️ Tech Stack
 * **Language:** Python 3.11
