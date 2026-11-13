@@ -1,27 +1,30 @@
-import json
-from datetime import datetime, timedelta
-import time
-from confluent_kafka import Consumer, KafkaError
 import pyarrow as pa
 from pyiceberg.catalog import load_catalog
 from pyiceberg.schema import Schema
 from pyiceberg.types import NestedField, StringType, DoubleType, TimestampType
 from pyiceberg.exceptions import NoSuchTableError
+import pyarrow.fs as pafs
+import json
+from datetime import datetime, timedelta, timezone
+import time
+import os
+from confluent_kafka import Consumer, KafkaError
 
-AWS_ACCESS_KEY = "XXXXXXXXXXXXXXXXXXXX"
-AWS_SECRET_KEY= "xxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+#pafs.initialize_s3(pafs.S3LogLevel.Debug)
+
 BUCKET_NAME = "my-portfolio-pipeline-data-2026"
+REGION = "us-east-2"
+
 
 catalog_properties = {
-    "type": "sql",
-    "uri": "sqlite:///c:/Users/Racadio/Desktop/iceberg_catalog.db",
+    "type": "glue",
     "warehouse": f"s3://{BUCKET_NAME}/warehouse",
-    "s3.access-key-id": AWS_ACCESS_KEY,
-    "s3.secret-access-key": AWS_SECRET_KEY,
-    "s3.region": "us-east-2",
-    "s3.endpoint": f"https://s3.us-east-2.amazonaws.com",
-    "py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO"
+    "glue.region": REGION,
+    "py-io-impl": "pyiceberg.io.pyarrow.PyArrowFileIO",
+    "s3.region": REGION,
+    "s3.endpoint": f"https://s3.{REGION}.amazonaws.com",
 }
+
 
 catalog = load_catalog("default", **catalog_properties)
 
@@ -46,16 +49,7 @@ try:
     table = catalog.load_table(table_name)
     table.metadata
     print(f"Loaded exisiting Icebergtable: {table_name}")
-except (NoSuchTableError, FileNotFoundError, OSError) as e:
-    #If the file is missing from S3, clean up the metadata database.
-    if not isinstance(e, NoSuchTableError):
-        print(f"Catalog out of sync. ({type(e).__name__}). Purging table pointer from SQLite...")
-        try:
-            catalog.drop_table(table_name)
-        except Exception:
-            pass
-    
-    #Create the table if it doesn't exist
+except (NoSuchTableError) as e:
     try:
         catalog.create_namespace("financial")
     except Exception:
@@ -64,7 +58,7 @@ except (NoSuchTableError, FileNotFoundError, OSError) as e:
     print(f"Created new Iceberg table: {table_name}")
 
 conf ={
-    'bootstrap.servers': 'localhost:9092',
+    'bootstrap.servers': '127.0.0.1:9092',
     'group.id': 'financial-transaction-consumer',
     'auto.offset.reset': 'earliest',
     'enable.auto.commit':False
@@ -84,15 +78,20 @@ batch = []
 BATCH_SIZE = 100
 
 def parse_timestamp(ts_value):
+    dt = None
     if isinstance(ts_value, (int, float)):
-        return datetime.fromtimestamp(ts_value)
-    if isinstance(ts_value, str):
+        dt = datetime.fromtimestamp(ts_value, tz=timezone.utc)
+    elif isinstance(ts_value, str):
         try: 
             #handle standard ISO format strings.
-            return datetime.fromisoformat(ts_value.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(ts_value.replace("Z", "+00:00"))
         except ValueError:
             pass
-    return datetime.now(datetime.timezone.utc)
+    if dt is None:
+        dt = datetime.now(tz=timezone.utc)
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    return dt
 
 try: 
     while True:
@@ -136,6 +135,7 @@ try:
         if len(batch) >= BATCH_SIZE:
             arrow_table = pa.Table.from_pylist(batch, schema=table.schema().as_arrow())
             table.upsert(arrow_table, join_cols=["transaction_id"])
+            consumer.commit(asynchronous=False)
             print(f"Upserted {len(batch)} transactions to Iceberg table: {table_name}")
             batch.clear()
 
@@ -147,7 +147,10 @@ finally:
     if batch:
         arrow_table = pa.Table.from_pylist(batch, schema=table.schema().as_arrow())
         table.upsert(arrow_table, join_cols=["transaction_id"])
+        consumer.commit(asynchronous=False)
         print(f"Appended {len(batch)} transactions to Iceberg table: {table_name}")
         batch.clear()
+    consumer.close()
+    print("Consumer closed successfully")
     consumer.close()
     print("Consumer closed successfully")
